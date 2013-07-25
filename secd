@@ -1,0 +1,48 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use IO::Socket;
+use Data::Dumper;
+use threads;
+use threads::shared;
+
+our @clients;
+share(@clients);
+@clients = ();
+
+# create the server socket
+my $sock = new IO::Socket::INET (
+    LocalPort => '31337',
+    Proto => 'tcp',
+    Listen => 1,
+    Reuse => 1,
+);
+
+sub handle_client { 
+    my $c = shift;
+    print $c "Nickname: ";
+    my $line = <$c>;
+    $line =~ s/\r//;
+    $line =~ s/\n//;
+    print "Got Nickname '$line'\n";
+    for my $fn (@clients) {
+        open my $fh, ">&=$fn" or warn $! and die;
+        print $fh "'$line' connected\n";
+    }
+    while (<$c>) {
+        s/\r//;
+        s/\n//;
+        for my $client (@clients) { 
+        open my $fh, ">&=$client" or warn $! and die;
+            print $fh  "$_\n";
+            print "$_\n";
+        }
+    }
+}
+
+while(my $client = $sock->accept()) {
+    push (@clients, fileno $client);
+    my $thr = threads->new( \&handle_client, $client )->detach();
+}
+
+
