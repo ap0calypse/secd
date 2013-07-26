@@ -6,6 +6,8 @@ use Data::Dumper;
 use threads;
 use threads::shared;
 
+
+$| = 1;
 our @clients;
 share(@clients);
 @clients = ();
@@ -25,17 +27,14 @@ sub handle_client {
     $line =~ s/\r//;
     $line =~ s/\n//;
     print "Got Nickname '$line'\n";
-    for my $fn (@clients) {
-        open my $fh, ">&=$fn" or warn $! and die;
-        print $fh "'$line' connected\n";
-    }
-    while (<$c>) {
-        s/\r//;
-        s/\n//;
+    while (my $line = $c->getline()) {
+#        s/\r//;
+#        s/\n//;
         for my $client (@clients) { 
-        open my $fh, ">&=$client" or warn $! and die;
-            print $fh  "$_\n";
-            print "$_\n";
+            open my $fh, ">&=$client" or warn $! and die;
+            print $fh  "$line";
+            print "$line";
+            close($fh);
         }
     }
 }
