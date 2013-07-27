@@ -21,7 +21,7 @@ my $sock = new IO::Socket::INET (
 
 sub handle_client { 
     my $c = shift;
-    print $c "Nickname: ";
+    print $c "001 - Nickname\n";
     my $line = <$c>;
     $line =~ s/\r//;
     $line =~ s/\n//;
