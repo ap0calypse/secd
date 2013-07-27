@@ -6,7 +6,6 @@ use Data::Dumper;
 use threads;
 use threads::shared;
 
-
 $| = 0;
 our @clients;
 share(@clients);
@@ -28,8 +27,6 @@ sub handle_client {
     $line =~ s/\n//;
     print "Got Nickname '$line' (" , $c->peerhost(), ")\n";
     while (my $input = $c->getline()) {
-        #$c->flush();
-        #$input =~ s/\n/RALFALF/g;
         for my $client (@clients) { 
             open my $fh, ">&=$client" or warn $! and die;
             print $fh  "$input";
@@ -43,5 +40,3 @@ while(my $client = $sock->accept()) {
     push (@clients, fileno $client);
     my $thr = threads->new( \&handle_client, $client )->detach();
 }
-
-
