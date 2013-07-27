@@ -26,6 +26,11 @@ sub handle_client {
     $line =~ s/\r//;
     $line =~ s/\n//;
     print "Got Nickname '$line' (" , $c->peerhost(), ")\n";
+    for my $client (@clients) { 
+        open my $fh, ">&=$client" or warn $! and die;
+        print $fh  "-> $line connected\n";
+        close($fh);
+    }
     while (my $input = $c->getline()) {
         for my $client (@clients) { 
             open my $fh, ">&=$client" or warn $! and die;
