@@ -7,7 +7,7 @@ use threads;
 use threads::shared;
 
 
-$| = 1;
+$| = 0;
 our @clients;
 share(@clients);
 @clients = ();
@@ -26,14 +26,14 @@ sub handle_client {
     my $line = <$c>;
     $line =~ s/\r//;
     $line =~ s/\n//;
-    print "Got Nickname '$line'\n";
-    while (my $line = $c->getline()) {
-#        s/\r//;
-#        s/\n//;
+    print "Got Nickname '$line' (" , $c->peerhost(), ")\n";
+    while (my $input = $c->getline()) {
+        #$c->flush();
+        #$input =~ s/\n/RALFALF/g;
         for my $client (@clients) { 
             open my $fh, ">&=$client" or warn $! and die;
-            print $fh  "$line";
-            print "$line";
+            print $fh  "$input";
+            print "$input";
             close($fh);
         }
     }
