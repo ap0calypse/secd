@@ -11,6 +11,10 @@ our @clients;
 share(@clients);
 @clients = ();
 
+our @client_names;
+share(@client_names);
+@client_names = ();
+
 # create the server socket
 my $sock = new IO::Socket::INET (
     LocalPort => '31337',
@@ -26,14 +30,21 @@ sub handle_client {
     $line =~ s/\r//;
     $line =~ s/\n//;
     print "Got Nickname '$line' (" , $c->peerhost(), ")\n";
+    $client_names[fileno $c] = $line;
     for my $client (@clients) { 
         open my $fh, ">&=$client" or warn $! and die;
-        print $fh  "-> $line connected\n";
+        print $fh  "-> $line connected (", $c->peerhost , ")\n";
         close($fh);
     }
     while (my $input = $c->getline()) {
         if ($input =~ m/^\/names.*/) {
-            $c->say("list of names");
+            my $namelist;
+            for (@client_names) {
+                if (defined $_) {
+                    $namelist .= " $_ ";
+                }
+            }
+            $c->say($namelist);
         }
         else {
             for my $client (@clients) { 
