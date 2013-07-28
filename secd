@@ -32,11 +32,15 @@ sub handle_client {
         close($fh);
     }
     while (my $input = $c->getline()) {
-        for my $client (@clients) { 
-            open my $fh, ">&=$client" or warn $! and die;
-            print $fh  "$input";
-            print "$input";
-            close($fh);
+        if ($input =~ m/^\/names.*/) {
+            $c->say("list of names");
+        }
+        else {
+            for my $client (@clients) { 
+                open my $fh, ">&=$client" or warn $! and die;
+                print $fh  "$input";
+                close($fh);
+            }
         }
     }
 }
