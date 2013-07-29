@@ -32,9 +32,14 @@ sub handle_client {
     print "Got Nickname '$line' (" , $c->peerhost(), ")\n";
     $client_names[fileno $c] = $line;
     for my $client (@clients) { 
-        open my $fh, ">&=$client" or warn $! and (($client_names[$client] = undef) and next);
-        print $fh  "-> $line connected (", $c->peerhost , ")\n";
-        close($fh);
+        if (open my $fh, ">&=$client") {
+            print $fh  "-> $line connected (", $c->peerhost(), ")\n";
+            close($fh);
+        }
+        else {
+            $client_names[$client] = undef;
+            next;
+        }
     }
     while (my $input = $c->getline()) {
         if ($input =~ m/^\/names.*/) {
@@ -68,6 +73,16 @@ while(my $client = $sock->accept()) {
     $thrds{fileno $client} = threads->new( \&handle_client, $client )->detach();
     for (keys %thrds) {
         unless ($thrds{$_}) {
+            for my $client (@clients) { 
+                if (open my $fh, ">&=$client") {
+                    print $fh  "$_ disconnected\n";
+                    close($fh);
+                }
+                else {
+                    $client_names[$client] = undef;
+                    next;
+                }
+            }
             delete $thrds{$_};
             $client_names[$_] = undef;
         }
