@@ -21,6 +21,7 @@ my $sock = new IO::Socket::INET (
     Proto => 'tcp',
     Listen => 1,
     Reuse => 1,
+    Backlog => 10,
 );
 
 sub handle_client { 
@@ -31,14 +32,16 @@ sub handle_client {
     $line =~ s/\n//;
     print "Got Nickname '$line' (" , $c->peerhost(), ")\n";
     $client_names[fileno $c] = $line;
-    for my $client (@clients) { 
-        if (open my $fh, ">&=$client") {
-            print $fh  "-> $line connected (", $c->peerhost(), ")\n";
-            close($fh);
-        }
-        else {
-            $client_names[$client] = undef;
-            next;
+    for my $client (@clients) {
+        if (defined $client) {
+            if (open my $fh, ">&=$client") {
+                print $fh  "-> $line connected (", $c->peerhost(), ")\n";
+                close($fh);
+            }
+            else {
+                $client_names[$client] = undef;
+                next;
+            }
         }
     }
     while (my $input = $c->getline()) {
@@ -53,13 +56,16 @@ sub handle_client {
         }
         else {
             for my $client (@clients) { 
-                if (open my $fh, ">&=$client") {
-                    print $fh  "$input";
-                    close($fh);
-                }
-                else {
-                    $client_names[$client] = undef;
-                    next;
+                if (defined $client) {
+                    if (open my $fh, ">&=$client") {
+                        print $fh  "$input";
+                        print "$input";
+                        close($fh);
+                    }
+                    else {
+                        $client_names[$client] = undef;
+                        next;
+                    }
                 }
             }
         }
@@ -67,24 +73,46 @@ sub handle_client {
 }
 
 my %thrds;
-
-while(my $client = $sock->accept()) {
-    push (@clients, fileno $client);
-    $thrds{fileno $client} = threads->new( \&handle_client, $client )->detach();
-    for (keys %thrds) {
-        unless ($thrds{$_}) {
-            for my $client (@clients) { 
+sub handle_disconnects() {
+    while(1) {
+        for my $client (@clients) {
+            if (defined $client) {
+                # check if they can be opened, then they hopefully are connected
                 if (open my $fh, ">&=$client") {
-                    print $fh  "$_ disconnected\n";
-                    close($fh);
+                    close $fh;
                 }
                 else {
+                    print $client_names[$client] . " disconnected\n";
+                    for my $c (@clients) {
+                        if (defined $c) {
+                        # check if they can be opened, then they hopefully are connected
+                            if (open my $fh, ">&=$c") {
+                                print $fh "-> " . $client_names[$client] . " disconnected\n";
+                                close $fh;
+                            }
+                        }
+                    }
                     $client_names[$client] = undef;
-                    next;
+                    $clients[$client] = undef;
+                    for (keys %thrds) {
+                        unless (exists $thrds{$_}) {
+                            delete $thrds{$_};
+                            $client_names[$_] = undef;
+                            $clients[$_] = undef;
+                        }
+                    }
                 }
             }
-            delete $thrds{$_};
-            $client_names[$_] = undef;
         }
+        sleep 5;
     }
+
+}
+
+my $worker = threads->new( \&handle_disconnects )->detach();
+
+while(my $client = $sock->accept()) {
+    $clients[fileno $client] = fileno $client;
+    #push (@clients, fileno $client);
+    $thrds{fileno $client} = threads->new( \&handle_client, $client )->detach();
 }
