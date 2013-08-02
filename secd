@@ -113,6 +113,5 @@ my $worker = threads->new( \&handle_disconnects )->detach();
 
 while(my $client = $sock->accept()) {
     $clients[fileno $client] = fileno $client;
-    #push (@clients, fileno $client);
     $thrds{fileno $client} = threads->new( \&handle_client, $client )->detach();
 }

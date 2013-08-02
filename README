@@ -1,0 +1,3 @@
+secd - simple encrypted chat daemon
+
+secd is the counterpart to secc. It provides server functionality.
